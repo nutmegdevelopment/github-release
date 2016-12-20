@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func infocmd(opt Options) error {
@@ -250,6 +252,73 @@ func ValidateCredentials(user, repo, token, tag string) error {
 	return nil
 }
 
+func tagcmd(opt Options) error {
+	cmdopt := opt.Tag
+	user := nvls(cmdopt.User, EnvUser)
+	repo := nvls(cmdopt.Repo, EnvRepo)
+	token := nvls(cmdopt.Token, EnvToken)
+	tag := cmdopt.Tag
+	sha := cmdopt.SHA
+
+	log.WithFields(log.Fields{
+		"user": user,
+		"repo": repo,
+		"tag":  tag,
+	}).Info("Tagging release")
+
+	if err := ValidateCredentials(user, repo, token, tag); err != nil {
+		return err
+	}
+
+	params := LightweightTag{
+		Ref: fmt.Sprintf("refs/tags/%s", tag),
+		SHA: sha,
+	}
+
+	/* encode params as json */
+	payload, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("can't encode tag creation params, %v", err)
+	}
+	reader := bytes.NewReader(payload)
+
+	uri := fmt.Sprintf("/repos/%s/%s/git/refs", user, repo)
+	log.WithFields(log.Fields{
+		"payload": string(payload),
+		"url":     uri,
+	}).Info("Preparing request")
+
+	resp, err := DoAuthRequest("POST", ApiURL()+uri, "application/json", token, nil, reader)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		return fmt.Errorf("while submitting %v, %v", string(payload), err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"reponse": resp,
+		}).Error("Unable to read reponse body")
+	}
+
+	log.WithFields(log.Fields{
+		"reponse": resp,
+		"body":    string(body),
+	}).Debug("Create tag response")
+
+	if resp.StatusCode != http.StatusCreated {
+		if resp.StatusCode == 422 {
+			return fmt.Errorf("Github returned %v: %s",
+				resp.Status, string(body))
+		}
+		return fmt.Errorf("github returned %v", resp.Status)
+	}
+
+	return nil
+}
+
 func releasecmd(opt Options) error {
 	cmdopt := opt.Release
 	user := nvls(cmdopt.User, EnvUser)
@@ -262,7 +331,11 @@ func releasecmd(opt Options) error {
 	draft := cmdopt.Draft
 	prerelease := cmdopt.Prerelease
 
-	vprintln("releasing...")
+	log.WithFields(log.Fields{
+		"user": user,
+		"repo": repo,
+		"tag":  tag,
+	}).Info("Creating release")
 
 	if err := ValidateCredentials(user, repo, token, tag); err != nil {
 		return err
@@ -285,6 +358,11 @@ func releasecmd(opt Options) error {
 	reader := bytes.NewReader(payload)
 
 	uri := fmt.Sprintf("/repos/%s/%s/releases", user, repo)
+	log.WithFields(log.Fields{
+		"payload": string(payload),
+		"url":     uri,
+	}).Info("Preparing request")
+
 	resp, err := DoAuthRequest("POST", ApiURL()+uri, "application/json",
 		token, nil, reader)
 	if resp != nil {
@@ -294,11 +372,22 @@ func releasecmd(opt Options) error {
 		return fmt.Errorf("while submitting %v, %v", string(payload), err)
 	}
 
-	vprintln("RESPONSE:", resp)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"reponse": resp,
+		}).Error("Unable to read reponse body")
+	}
+
+	log.WithFields(log.Fields{
+		"reponse": resp,
+		"body":    string(body),
+	}).Debug("Create tag response")
+
 	if resp.StatusCode != http.StatusCreated {
 		if resp.StatusCode == 422 {
-			return fmt.Errorf("github returned %v (this is probably because the release already exists)",
-				resp.Status)
+			return fmt.Errorf("github returned %v: %s",
+				resp.Status, string(body))
 		}
 		return fmt.Errorf("github returned %v", resp.Status)
 	}

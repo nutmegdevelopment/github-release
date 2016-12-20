@@ -5,21 +5,28 @@ import (
 )
 
 const (
-	TAGS_URI = "/repos/%s/%s/tags%s"
+	tagsURI = "/repos/%s/%s/tags%s"
 )
 
+// Tag ...
 type Tag struct {
 	Name       string `json:"name"`
 	Commit     Commit `json:"commit"`
-	ZipBallUrl string `json:"zipball_url"`
-	TarBallUrl string `json:"tarball_url"`
+	ZipBallURL string `json:"zipball_url"`
+	TarBallURL string `json:"tarball_url"`
+}
+
+// LightweightTag holds the fields required for a lightweight tag.
+type LightweightTag struct {
+	Ref string `json:"ref"`
+	SHA string `json:"sha"`
 }
 
 func (t *Tag) String() string {
 	return t.Name + " (commit: " + t.Commit.Url + ")"
 }
 
-/* get the tags associated with a repo */
+// Tags gets the tags associated with a repo.
 func Tags(user, repo, token string) ([]Tag, error) {
 	var tags []Tag
 
@@ -27,7 +34,7 @@ func Tags(user, repo, token string) ([]Tag, error) {
 		token = "?access_token=" + token
 	}
 
-	err := GithubGet(fmt.Sprintf(TAGS_URI, user, repo, token), &tags)
+	err := GithubGet(fmt.Sprintf(tagsURI, user, repo, token), &tags)
 	if err != nil {
 		return nil, err
 	}

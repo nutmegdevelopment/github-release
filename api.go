@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -50,7 +52,12 @@ func materializeFile(f *os.File) (io.Reader, int64, error) {
 
 /* create a new request that sends the auth token */
 func NewAuthRequest(method, url, bodyType, token string, headers map[string]string, body io.Reader) (*http.Request, error) {
-	vprintln("creating request:", method, url, bodyType, token)
+	// vprintln("creating request:", method, url, bodyType, token)
+	log.WithFields(log.Fields{
+		"method":    method,
+		"url":       url,
+		"body-type": bodyType,
+	}).Info("Creating Request")
 
 	var n int64 // content length
 	var err error

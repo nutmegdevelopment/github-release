@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/voxelbrain/goptions"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type Options struct {
@@ -42,6 +44,15 @@ type Options struct {
 		Draft      bool   `goptions:"--draft, description='The release is a draft'"`
 		Prerelease bool   `goptions:"-p, --pre-release, description='The release is a pre-release'"`
 	} `goptions:"release"`
+	Tag struct {
+		Token string `goptions:"-s, --security-token, description='Github token (required if $GITHUB_TOKEN not set)'"`
+		User  string `goptions:"-u, --user, description='Github user (required if $GITHUB_USER not set)'"`
+		Repo  string `goptions:"-r, --repo, description='Github repo (required if $GITHUB_REPO not set)'"`
+		Tag   string `goptions:"-t, --tag, obligatory, description='Git tag to create'"`
+		SHA   string `goptions:"-s, --sha, obligatory, description='Git commit SHA to associate tag with'"`
+		Name  string `goptions:"-n, --name, description='Name of the release (defaults to tag)'"`
+		Desc  string `goptions:"-d, --description, description='Description of the release (defaults to tag)'"`
+	} `goptions:"tag"`
 	Edit struct {
 		Token      string `goptions:"-s, --security-token, description='Github token (required if $GITHUB_TOKEN not set)'"`
 		User       string `goptions:"-u, --user, description='Github user (required if $GITHUB_USER not set)'"`
@@ -75,6 +86,7 @@ var commands = map[goptions.Verbs]Command{
 	"edit":     editcmd,
 	"delete":   deletecmd,
 	"info":     infocmd,
+	"tag":      tagcmd,
 }
 
 var (
@@ -101,7 +113,7 @@ func main() {
 	goptions.ParseAndFail(&options)
 
 	if options.Version {
-		fmt.Printf("github-release v%s\n", VERSION)
+		fmt.Printf("github-release v%s\n", version)
 		return
 	}
 
@@ -115,10 +127,12 @@ func main() {
 	if cmd, found := commands[options.Verbs]; found {
 		err := cmd(options)
 		if err != nil {
-			if !options.Quiet {
-				fmt.Fprintln(os.Stderr, "error:", err)
-			}
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Error("Command finished unexpectedly")
 			os.Exit(1)
 		}
+
+		log.Info("Command completed successfully")
 	}
 }

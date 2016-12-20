@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	RELEASE_LIST_URI    = "/repos/%s/%s/releases%s"
-	RELEASE_LATEST_URI  = "/repos/%s/%s/releases/latest%s"
-	RELEASE_DATE_FORMAT = "02/01/2006 at 15:04"
+	releaseListURI    = "/repos/%s/%s/releases%s"
+	releaseLatestURI  = "/repos/%s/%s/releases/latest%s"
+	releaseDateFormat = "02/01/2006 at 15:04"
 )
 
 type Release struct {
@@ -44,8 +44,8 @@ func (r *Release) String() string {
 	str[0] = fmt.Sprintf(
 		"%s, name: '%s', description: '%s', id: %d, tagged: %s, published: %s, draft: %v, prerelease: %v",
 		r.TagName, r.Name, r.Description, r.Id,
-		timeFmtOr(r.Created, RELEASE_DATE_FORMAT, ""),
-		timeFmtOr(r.Published, RELEASE_DATE_FORMAT, ""),
+		timeFmtOr(r.Created, releaseDateFormat, ""),
+		timeFmtOr(r.Published, releaseDateFormat, ""),
 		Mark(r.Draft), Mark(r.Prerelease))
 
 	for idx, asset := range r.Assets {
@@ -57,12 +57,14 @@ func (r *Release) String() string {
 	return strings.Join(str, "\n")
 }
 
+// ReleaseCreate ...
 type ReleaseCreate struct {
 	TagName         string `json:"tag_name"`
 	TargetCommitish string `json:"target_commitish,omitempty"`
 	Name            string `json:"name"`
 	Body            string `json:"body"`
 	Draft           bool   `json:"draft"`
+	CreateTag       bool   `json:"-"`
 	Prerelease      bool   `json:"prerelease"`
 }
 
@@ -71,7 +73,7 @@ func Releases(user, repo, token string) ([]Release, error) {
 		token = "?access_token=" + token
 	}
 	var releases []Release
-	err := GithubGet(fmt.Sprintf(RELEASE_LIST_URI, user, repo, token), &releases)
+	err := GithubGet(fmt.Sprintf(releaseListURI, user, repo, token), &releases)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +86,7 @@ func latestReleaseApi(user, repo, token string) (*Release, error) {
 		token = "?access_token=" + token
 	}
 	var release Release
-	return &release, GithubGet(fmt.Sprintf(RELEASE_LATEST_URI, user, repo, token), &release)
+	return &release, GithubGet(fmt.Sprintf(releaseLatestURI, user, repo, token), &release)
 }
 
 func LatestRelease(user, repo, token string) (*Release, error) {
