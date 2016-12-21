@@ -1,4 +1,4 @@
-package main
+package main // import "https://github.com/nutmegdevelopment/github-release"
 
 import (
 	"fmt"
